@@ -1,0 +1,57 @@
+name: Refresh Kaggle Loop via API
+
+on:
+  
+  workflow_dispatch: # Manual button to start the loop the first time
+
+jobs:
+  refresh-notebook:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Checkout your repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # 3. Install lightweight dependencies
+      - name: Install Dependencies
+        run: |
+         python -m pip install --upgrade pip
+         pip install playwright
+         playwright install chromium --with-deps
+
+      # ====================================================================
+      # CROSS-RUN HISTORICAL ARTIFACT RECOVERY LOOP (PERMANENT FIX)
+      # ====================================================================
+
+      # 6. Search across ALL historical runs to find and download yesterday's active token state
+      - name: Download Latest Historical Kaggle Session State
+        uses: dawidd6/action-download-artifact@v9
+        continue-on-error: true # Safe fallback if the entire repo is wiped
+        with:
+          name: kaggle-rolling-state
+          search_artifacts: true  # CRITICAL: Forces GitHub to look outside the current run thread
+          path: .                 # Extract file directly to your main working workspace root
+
+
+      # 7. Trigger Kaggle (Using Kaggle CLI & Playwright)
+      - name: Trigger Kaggle Notebook
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          KAGGLE_AUTH_JSON: ${{ secrets.KAGGLE_AUTH_JSON }}
+        run: python3 trigger-scheduler.py
+
+      # 8. Upload the freshly generated rolling session state so tomorrow's run can use it
+      - name: Save Refreshed Kaggle Session State
+        if: always() # Guarantees updated cookies register even if other pipeline steps fail
+        uses: actions/upload-artifact@v4
+        with:
+          name: kaggle-rolling-state
+          path: state.json # Keep this as state.json since you verified that's what's inside
+          retention-days: 7
