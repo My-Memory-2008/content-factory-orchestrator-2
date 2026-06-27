@@ -1,1 +1,17 @@
-
+{
+  "queue": [
+    {
+      "url": "https://www.instagram.com/marvelinfinity.in/reel/CbfX_NFgWyM/",
+      "username": "marvelinfinity.in",
+      "notes": "Auto-added from reels_source.txt",
+      "added_at": "2026-06-27T16:45:05.012265+00:00"
+    }
+  ],
+  "processed": [],
+  "metadata": {
+    "total_queued": 1,
+    "total_processed": 0,
+    "last_run": "2026-06-27T16:45:05.012359+00:00",
+    "next_scheduled": null
+  }
+}
