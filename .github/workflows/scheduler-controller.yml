@@ -42,8 +42,6 @@ jobs:
       # 7. Trigger Kaggle (Using Kaggle CLI & Playwright)
       - name: Trigger Kaggle Notebook
         env:
-          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
           KAGGLE_AUTH_JSON: ${{ secrets.KAGGLE_AUTH_JSON }}
         run: python3 trigger-scheduler.py
 
