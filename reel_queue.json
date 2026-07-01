@@ -7,7 +7,14 @@
       "added_at": "2026-07-01T03:35:20.547482+00:00"
     }
   ],
-  "processed": [],
+  "processed": [
+    {
+      "url": "https://www.instagram.com/comicbook/reel/CU5zA1PBkkC/",
+      "username": "comicbook",
+      "status": "in_progress",
+      "started_at": "2026-07-01T03:45:02.149601+00:00"
+    }
+  ],
   "metadata": {
     "total_queued": 1,
     "total_processed": 0,
