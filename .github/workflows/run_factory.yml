@@ -45,7 +45,7 @@ jobs:
           
           pick = None
           for r in queue:
-              if '/instagram.com/' in r['url']:
+              if 'www.instagram.com' in r['url']:
                   pick = r
                   break
           
