@@ -32,18 +32,45 @@ jobs:
       # 6. Search across ALL historical runs to find and download yesterday's active token state
       - name: Download Latest Historical Kaggle Session State
         uses: dawidd6/action-download-artifact@v9
-        continue-on-error: true # Safe fallback if the entire repo is wiped
+        continue-on-error: true # Safe fallback if the entire history is clear
         with:
           name: kaggle-rolling-state
           search_artifacts: true  # CRITICAL: Forces GitHub to look outside the current run thread
-          path: .                 # Extract file directly to your main working workspace root
+          path: .                 # Base path execution root
 
+      # 6a. FIX STEP: Flatten directory structures & verify valid cookie structures
+      - name: Align and Validate Cookie State Pathing
+        run: |
+          # If the plugin dropped the file inside a folder named after the artifact, move it to the root
+          if [ -f "./kaggle-rolling-state/state.json" ]; then
+            mv ./kaggle-rolling-state/state.json ./state.json
+            echo "🔄 Path Alignment: Moved state.json from nested artifact folder to root workspace."
+          fi
+
+          # Safety Check: If state.json doesn't exist, create a clean, valid empty fallback JSON object
+          if [ ! -f "./state.json" ] || [ ! -s "./state.json" ]; then
+            echo "{}" > ./state.json
+            echo "⚠️ Warning: No valid historical state file found. Generated a clean fallback cookie template."
+          else
+            echo "✅ Valid rolling session cookie file detected in root workspace."
+          fi
 
       # 7. Trigger Kaggle (Using Kaggle CLI & Playwright)
       - name: Trigger Kaggle Notebook
         env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
           KAGGLE_AUTH_JSON: ${{ secrets.KAGGLE_AUTH_JSON }}
         run: python3 trigger-scheduler.py
+
+      # 7a. FIX STEP: Guard against uploading empty or missing states if trigger.py errored out
+      - name: Verify Newly Extracted Session Tokens
+        if: always()
+        run: |
+          if [ ! -f "./state.json" ] || [ ! -s "./state.json" ]; then
+            echo "⚠️ Post-Run Warning: state.json is missing or empty. Populating safety fallback to prevent breaking tomorrow's action run loop."
+            echo "{}" > ./state.json
+          fi
 
       # 8. Upload the freshly generated rolling session state so tomorrow's run can use it
       - name: Save Refreshed Kaggle Session State
@@ -51,5 +78,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kaggle-rolling-state
-          path: state.json # Keep this as state.json since you verified that's what's inside
+          path: state.json # Uploads the clean verified file from the root
           retention-days: 7
+          overwrite: true  # CRITICAL: Forces GitHub actions to replace older historical blocks cleanly
