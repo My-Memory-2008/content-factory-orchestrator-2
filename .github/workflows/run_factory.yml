@@ -1,4 +1,3 @@
-
 name: Content Factory Orchestrator (Duplicate-Proof)
 
 on:
@@ -9,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write        # Allows the bot to push files back to repo
+      actions: write         # Required to read/write rolling artifact tracking pools
 
     steps:
       # 1. Checkout your repository
@@ -24,21 +24,18 @@ jobs:
       # 3. Install lightweight dependencies
       - name: Install Dependencies
         run: |
+         pip install requests openai yt-dlp requests[socks]
          python -m pip install --upgrade pip
          pip install playwright
          playwright install chromium --with-deps
          
 
-      # 4. Run the Queue Logic (Checks Duplicates & Generates Script)
-      #4. Process queue → generate pipeline_data.json
+      # 4. Process queue → generate pipeline_data.json
       - name: Process Queue & Generate Script
-        #env:
-          # GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           python3 << 'EOF'
           import os, json, re
           from datetime import datetime, timezone
-          # from openai import OpenAI
           
           with open('reel_queue.json', 'r') as f:
               data = json.load(f)
@@ -48,32 +45,17 @@ jobs:
           
           pick = None
           for r in queue:
-              if 'instagram.com/' in r['url']:
+              if '://instagram.com' in r['url']:
                   pick = r
                   break
           
           if not pick:
               print("✅ No new reels. Exiting.")
               exit(0)
-
-          #
-          # sc = re.search(r'/reel/([^/?]+)', pick['url']).group(1)
-          #
           
           sc_match = re.search(r'/reel/([^/?]+)', pick['url'])
           sc = sc_match.group(1) if sc_match else "unknown"
           user = pick.get('username', 'unknown')
-          
-          # client = OpenAI(api_key=os.environ['GROQ_API_KEY'], base_url='https://api.groq.com/openai/v1')
-          # resp = client.chat.completions.create(
-          #    model="llama-3.3-70b-versatile",
-          #    messages=[
-          #        {"role":"system","content":"YouTube Shorts expert. Max 35 words. Bold hook. One tip. CTA."},
-          #        {"role":"user","content":f"Write a 14s script inspired by @{user}"}
-          #   ],
-          #    max_tokens=100
-          #)
-          # script = resp.choices[0].message.content.strip()
           
           with open('pipeline_data.json', 'w') as f:
             json.dump({
@@ -93,38 +75,244 @@ jobs:
           print(f"✅ Queued: {pick['url']}")
           EOF
 
+      # ====================================================================
+      # ROBUST ROUTINE: HEADED PLAYWRIGHT VIRTUAL SCREEN BYPASS (NO COOKIES)
+      # ====================================================================
+
+      # 4a. Initialize a Virtual Screen Buffer (Xvfb) so Chromium can run with headless=false in the cloud
+      - name: Initialize Virtual Display Framebuffer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          # Start Xvfb background display port 99
+          Xvfb :99 -screen 0 1280x720x24 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+          sleep 3
+
+      # 4b. Use genuine browser simulation to process snapinsta.to completely safely
+      - name: Cloud Download Video Asset via Playwright Simulation
+        env:
+          DISPLAY: :99
+        run: |
+          python3 << 'EOF'
+          import json, os, subprocess, asyncio, shutil
+          from playwright.async_api import async_playwright
+          
+          async def run_stealth_download():
+              # 1. Extraction safety checks
+              if not os.path.exists('pipeline_data.json'):
+                  print("ℹ️ pipeline_data.json missing. Skipping download cycle.")
+                  return
+                  
+              with open('pipeline_data.json', 'r') as f:
+                  pipeline = json.load(f)
+              
+              reel_url = pipeline.get('reel_url')
+              shortcode = pipeline.get('shortcode', 'downloaded_reel')
+              
+              if not reel_url or "unknown" in reel_url:
+                  print("❌ Missing video URL target path inside JSON queue.")
+                  return
+              
+              # CRITICAL AUTOMATED RESET: Wipes out previous video file frames completely
+              if os.path.exists('downloads'):
+                  shutil.rmtree('downloads')
+                  print("🧹 Storage Reset: Prior video files completely purged from memory workspace.")
+                  
+              os.makedirs('downloads', exist_ok=True)
+              output_path = f"downloads/reelforyoutube.mp4"
+              
+              print(f"🚀 Launching real browser instance to download from snapinsta.to: {reel_url}")
+              
+              async with async_playwright() as p:
+                  # Launch with headless=False to mimic a human user screen footprint
+                  browser = await p.chromium.launch(
+                      headless=False,
+                      args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
+                  )
+                  
+                  # Emulate a clean desktop user profile environment
+                  context = await browser.new_context(
+                      viewport={'width': 1280, 'height': 720},
+                      user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                  )
+                  
+                  page = await context.new_page()
+                  
+                  # Block analytical scripts and known ad networks to optimize cloud network speeds
+                  await page.route("**/*", lambda route: route.continue_() if not any(x in route.request.url for x in ["googlesyndication", "doubleclick", "adservice", "popads"]) else route.abort())
+                  
+                  # Navigate to the target downloader platform layout
+                  print("🌐 Loading downloader frontend...")
+                  await page.goto("https://snapinsta.to", wait_until="domcontentloaded", timeout=60000)
+                  await page.wait_for_timeout(4000)
+                  
+                  # Target the precise input element field you highlighted
+                  input_selector = "input#s_input"
+                  await page.wait_for_selector(input_selector, timeout=15000)
+                  await page.fill(input_selector, reel_url)
+                  await page.wait_for_timeout(1000)
+                  
+                  # Click the targeted search submission button containing the 'Download' text
+                  print("⚡ Dispatching submission click event on primary download engine button...")
+                  submit_button_selector = "button:has-text('Download')"
+                  await page.click(submit_button_selector)
+                  
+                  # Wait dynamically for background events and API requests to fully resolve media links
+                  print("⏳ Monitoring page layout transformations, waiting for direct download buttons...")
+                  
+                  # Close rogue popups and alert banners if they overlay on top of the browser screen canvas
+                  try:
+                      close_selectors = [".modal-footer button", ".close", "button:has-text('Close')", "#close-button"]
+                      for sel in close_selectors:
+                          if await page.locator(sel).is_visible():
+                              await page.click(sel)
+                              print(f"🧹 Dismissed intersecting popup component: {sel}")
+                  except Exception:
+                      pass
+                  
+                  # Target the specific inner result link structure rendered by snapinsta.to
+                  download_btn_selector = "a:has-text('Download Video'), a[href*='cdninstagram.com'], a.btn-download"
+                  video_stream_url = None
+                  
+                  try:
+                      # Give the backend up to 25 seconds to process and print out the media cards
+                      await page.wait_for_selector(download_btn_selector, timeout=25000)
+                      video_stream_url = await page.locator(download_btn_selector).first.get_attribute("href")
+                  except Exception as e:
+                      print(f"❌ Could not isolate the direct stream link node on page: {e}")
+                      # Fallback step: search broadly for any active href strings pointing directly to video containers
+                      links = await page.locator("a").all()
+                      for link in links:
+                          href = await link.get_attribute("href")
+                          if href and ("instagram" in href or "cdn" in href or ".mp4" in href):
+                              video_stream_url = href
+                              break
+                              
+                  await browser.close()
+              
+              # 2. Download the isolated source .mp4 string using standard curl utility
+              if video_stream_url:
+                  # Clean up URL encoding formats
+                  video_stream_url = video_stream_url.replace('&amp;', '&')
+                  print(f"🔗 Clean stream link isolated: {video_stream_url[:60]}...")
+                  print("Streaming media blocks directly into workspace directory...")
+                  
+                  curl_cmd = ["curl", "-L", "-A", "Mozilla/5.0", "-o", output_path, video_stream_url]
+                  subprocess.run(curl_cmd, capture_output=True)
+                  
+                  # 3. Size Guard Checklist
+                  if os.path.exists(output_path):
+                      file_size = os.path.getsize(output_path)
+                      if file_size > 50000:
+                          print(f"🎉 Real video asset captured successfully! Size: {file_size / (1024*1024):.2f} MB")
+                      else:
+                          os.remove(output_path)
+                          print("❌ Download output contains light text metrics instead of video data. Dropping placeholder.")
+                  else:
+                      print("❌ Core system disk space rejected file creation execution.")
+              else:
+                  print("❌ Could not extract the raw download asset URL path property.")
+          
+          asyncio.run(run_stealth_download())
+          EOF
+
+      # ====================================================================
+
       # 5. Commit changes back to GitHub
       - name: Commit Updates
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.email "github-actions[bot]@://github.com"
+          
+          # Force Git to look at deletions as well as additions inside the folder pool
+          git add -A downloads/
           git add -f reel_queue.json pipeline_data.json
+          
           if git diff-index --quiet HEAD --; then
             echo "ℹ️ No changes to commit."
           else
-            git commit -m "Auto: Picked next reel [skip ci]"
+            git commit -m "Auto: Picked next reel & downloaded media asset [skip ci]"
             git push
           fi
 
-       # ====================================================================
+      # # ====================================================================
+      # # CROSS-RUN HISTORICAL ARTIFACT RECOVERY LOOP (PERMANENT FIX)
+      # # ====================================================================
+
+      # # 6. Search across ALL historical runs to find and download yesterday's active token state
+      # - name: Download Latest Historical Kaggle Session State
+      #   uses: dawidd6/action-download-artifact@v9
+      #   continue-on-error: true # Safe fallback if the entire repo is wiped
+      #   with:
+      #     name: kaggle-rolling-state
+      #     search_artifacts: true  # CRITICAL: Forces GitHub to look outside the current run thread
+      #     path: .                 # Extract file directly to your main working workspace root
+
+
+      # # 7. Trigger Kaggle (Using Kaggle CLI & Playwright)
+      # - name: Trigger Kaggle Notebook
+      #   env:
+      #     KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+      #     KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+      #     KAGGLE_AUTH_JSON: ${{ secrets.KAGGLE_AUTH_JSON }}
+      #   run: python3 trigger.py
+
+      # # 8. Upload the freshly generated rolling session state so tomorrow's run can use it
+      # - name: Save Refreshed Kaggle Session State
+      #   if: always() # Guarantees updated cookies register even if other pipeline steps fail
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: kaggle-rolling-state
+      #     path: state.json # Keep this as state.json since you verified that's what's inside
+      #     retention-days: 7
+
+      # ====================================================================
       # CROSS-RUN HISTORICAL ARTIFACT RECOVERY LOOP (PERMANENT FIX)
       # ====================================================================
 
       # 6. Search across ALL historical runs to find and download yesterday's active token state
       - name: Download Latest Historical Kaggle Session State
         uses: dawidd6/action-download-artifact@v9
-        continue-on-error: true # Safe fallback if the entire repo is wiped
+        continue-on-error: true # Safe fallback if the entire history is clear
         with:
           name: kaggle-rolling-state
           search_artifacts: true  # CRITICAL: Forces GitHub to look outside the current run thread
-          path: .                 # Extract file directly to your main working workspace root
+          path: .                 # Base path execution root
 
+      # 6a. FIX STEP: Flatten directory structures & verify valid cookie structures
+      - name: Align and Validate Cookie State Pathing
+        run: |
+          # If the plugin dropped the file inside a folder named after the artifact, move it to the root
+          if [ -f "./kaggle-rolling-state/state.json" ]; then
+            mv ./kaggle-rolling-state/state.json ./state.json
+            echo "🔄 Path Alignment: Moved state.json from nested artifact folder to root workspace."
+          fi
+
+          # Safety Check: If state.json doesn't exist, create a clean, valid empty fallback JSON object
+          if [ ! -f "./state.json" ] || [ ! -s "./state.json" ]; then
+            echo "{}" > ./state.json
+            echo "⚠️ Warning: No valid historical state file found. Generated a clean fallback cookie template."
+          else
+            echo "✅ Valid rolling session cookie file detected in root workspace."
+          fi
 
       # 7. Trigger Kaggle (Using Kaggle CLI & Playwright)
       - name: Trigger Kaggle Notebook
         env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
           KAGGLE_AUTH_JSON: ${{ secrets.KAGGLE_AUTH_JSON }}
         run: python3 trigger.py
+
+      # 7a. FIX STEP: Guard against uploading empty or missing states if trigger.py errored out
+      - name: Verify Newly Extracted Session Tokens
+        if: always()
+        run: |
+          if [ ! -f "./state.json" ] || [ ! -s "./state.json" ]; then
+            echo "⚠️ Post-Run Warning: state.json is missing or empty. Populating safety fallback to prevent breaking tomorrow's action run loop."
+            echo "{}" > ./state.json
+          fi
 
       # 8. Upload the freshly generated rolling session state so tomorrow's run can use it
       - name: Save Refreshed Kaggle Session State
@@ -132,5 +320,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kaggle-rolling-state
-          path: state.json # Keep this as state.json since you verified that's what's inside
+          path: state.json # Uploads the clean verified file from the root
           retention-days: 7
+          overwrite: true  # CRITICAL: Forces GitHub actions to replace older historical blocks cleanly
