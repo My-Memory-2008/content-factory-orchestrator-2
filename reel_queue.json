@@ -1,10 +1,10 @@
 {
   "queue": [
     {
-      "url": "https://www.instagram.com/marvelmovies_13/reel/DYZSMCFtKhr/",
-      "username": "marvelmovies_13",
+      "url": "https://www.instagram.com/marvelinfinity.in/reel/Cr_DHCWpoQ3/",
+      "username": "marvelinfinity.in",
       "notes": "Auto-added from reels_source.txt",
-      "added_at": "2026-07-02T12:15:27.504078+00:00"
+      "added_at": "2026-07-03T07:01:03.128642+00:00"
     }
   ],
   "processed": [
@@ -36,7 +36,7 @@
   "metadata": {
     "total_queued": 1,
     "total_processed": 0,
-    "last_run": "2026-07-02T12:15:27.504166+00:00",
+    "last_run": "2026-07-03T07:01:03.128724+00:00",
     "next_scheduled": null
   }
 }
