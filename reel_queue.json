@@ -1,10 +1,10 @@
 {
   "queue": [
     {
-      "url": "https://www.instagram.com/comicvault0/reel/DUBP1cUkZt0/",
-      "username": "comicvault0",
+      "url": "https://www.instagram.com/marvelinfinity.in/reel/C1R7sTyP8MB/",
+      "username": "marvelinfinity.in",
       "notes": "Auto-added from reels_source.txt",
-      "added_at": "2026-07-03T12:16:11.751015+00:00"
+      "added_at": "2026-07-04T01:17:52.666262+00:00"
     }
   ],
   "processed": [
@@ -48,7 +48,7 @@
   "metadata": {
     "total_queued": 1,
     "total_processed": 0,
-    "last_run": "2026-07-03T12:16:11.751097+00:00",
+    "last_run": "2026-07-04T01:17:52.666342+00:00",
     "next_scheduled": null
   }
 }
