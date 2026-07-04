@@ -1,0 +1,58 @@
+name: Process Instagram Reels
+on:
+  workflow_dispatch:   # Allows you to click "Run workflow" manually inside GitHub
+
+jobs:
+  process_reel:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Essential permission to push video and text files back to your repo
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Initialize Virtual Display Framebuffer (Xvfb)
+        run: |
+          sudo apt-get update
+          # Installed modern Ubuntu 24.04 GLX rendering libraries instead of deprecated mesa-glx
+          sudo apt-get install -y xvfb libgl1 libglx-mesa0 libegl1
+          
+          # Launch background display 99 so Chromium runs without crashing
+          Xvfb :99 -screen 0 1280x720x24 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+          sleep 3
+
+
+      - name: Install Ollama
+        run: |
+          # Safe dedicated installer string path execution 
+          curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama Server
+        run: |
+          ollama serve &
+          echo "Waiting for Ollama server to boot..."
+          until curl -s http://127.0.0.1:11434 > /dev/null; do
+            sleep 1
+          done
+          echo "Ollama server is up and running!"
+
+      - name: Download Vision Model
+        run: |
+          # Fix: Corrected model naming structure matching official repository schemas
+          ollama pull qwen2.5vl:3b
+      - name: Set up Python Engine
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install System & Python Dependencies
+        run: |
+          pip install requests opencv-python playwright instaloader
+          playwright install chromium
+
+      - name: Run Automation Pipeline Execution
+        env:
+          # GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISPLAY: :99
+        run: python process_reel.py
