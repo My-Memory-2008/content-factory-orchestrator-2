@@ -1,10 +1,10 @@
 {
   "queue": [
     {
-      "url": "https://www.instagram.com/fantastic.edits18/reel/DU8dFPoDZ5J/",
-      "username": "fantastic.edits18",
+      "url": "https://www.instagram.com/marvel_archivez/reel/DZl8RIZPNuV/",
+      "username": "marvel_archivez",
       "notes": "Auto-added from reels_source.txt",
-      "added_at": "2026-07-07T12:19:59.462748+00:00"
+      "added_at": "2026-07-09T10:15:11.418950+00:00"
     }
   ],
   "processed": [
@@ -126,7 +126,7 @@
   "metadata": {
     "total_queued": 1,
     "total_processed": 0,
-    "last_run": "2026-07-07T12:19:59.462856+00:00",
+    "last_run": "2026-07-09T10:15:11.419064+00:00",
     "next_scheduled": null
   }
 }
