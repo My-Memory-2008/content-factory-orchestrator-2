@@ -39,15 +39,17 @@ def monitor_workflow(run_id, workflow_file):
     
     while True:
         elapsed_time = time.time() - start_time
+        print(f"Checking status... Elapsed time for this job: {elapsed_time / 3600:.2f} hours", flush=True)
         
-        # Check if the workflow has hit the 5-hour mark
+        # Check if the workflow has hit or crossed the 5-hour mark
         if elapsed_time >= five_hours_in_seconds:
             print(f"⚠️ Alert: Workflow {workflow_file} (Run ID: {run_id}) has reached the 5-hour limit!", flush=True)
             
-            # 1. Execute the rerun.py script synchronously
-            print("Executing rerun.py...", flush=True)
-            result = subprocess.run(["python", "-u", "rerun.py"], text=True, capture_output=True)
-            print(f"rerun.py output:\n{result.stdout}\n{result.stderr}", flush=True)
+            # 1. Execute the rerun.py script synchronously (Using python3 explicitly for Linux compatibility)
+            print("Executing rerun.py at root directory...", flush=True)
+            result = subprocess.run(["python3", "-u", "rerun.py"], text=True, capture_output=True)
+            print(f"rerun.py output stdout:\n{result.stdout}", flush=True)
+            print(f"rerun.py output stderr:\n{result.stderr}", flush=True)
             
             # 2. Check if rerun.py succeeded (Exit code 0 means success)
             if result.returncode == 0:
@@ -58,11 +60,11 @@ def monitor_workflow(run_id, workflow_file):
                 cancel_cmd = f"gh run cancel {run_id}"
                 c_out, c_err = run_command(cancel_cmd)
                 if c_err:
-                    print(f"Error cancelling workflow: {c_err}", flush=True)
+                    print(f"Error cancelling workflow via GitHub CLI: {c_err}", flush=True)
                 else:
                     print(f"Successfully eliminated workflow {workflow_file}.", flush=True)
             else:
-                print("❌ rerun.py failed to execute successfully. Aborting workflow termination.", flush=True)
+                print(f"❌ rerun.py failed to execute cleanly (Exit code: {result.returncode}). Aborting workflow termination.", flush=True)
             
             break
 
@@ -75,11 +77,13 @@ def monitor_workflow(run_id, workflow_file):
             status = status_data.get("status")
             conclusion = status_data.get("conclusion")
             
+            # If it finished naturally before 5 hours, exit tracking loop
             if status == "completed":
                 print(f"Workflow {workflow_file} finished naturally with conclusion: {conclusion}", flush=True)
                 break
-        except Exception:
-            pass # Keep trying if API temporarily fails
+        except Exception as e:
+            # Logs temporary network dropouts or API rate-limits without breaking the loop
+            print(f"Temporary GitHub API status checking glitch: {e}. Retrying...", flush=True)
 
         time.sleep(60) # Check status every 1 minute
 
@@ -111,7 +115,7 @@ def check_and_execute_jobs():
             break 
 
 def main():
-    print("🚀 Long-running master scheduler started via Python loop...", flush=True)
+    print("🚀 Long-running master scheduler started via Python loop engine...", flush=True)
     
     while True:
         check_and_execute_jobs()
