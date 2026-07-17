@@ -264,7 +264,6 @@
 #     main()
 
 
-
 import json
 import time
 import subprocess
@@ -274,6 +273,8 @@ import pytz
 
 # Setup Indian Standard Timezone
 IST = pytz.timezone('Asia/Kolkata')
+
+start_time = time.time()
 
 def get_current_ist():
     return datetime.now(IST)
@@ -300,7 +301,7 @@ def trigger_workflow(workflow_file):
 
 def monitor_workflow(run_id, workflow_file):
     """Monitors a workflow run. Triggers scheduler-controller.yml, cancels the run if it exceeds 5 hours, and stops."""
-    start_time = time.time()
+    
     five_hours_in_seconds = 5 * 60 * 60
 
     print(f"Monitoring Workflow Run ID: {run_id} for {workflow_file}", flush=True)
@@ -394,6 +395,8 @@ def main():
         # Sleep for exactly 5 minutes (300 seconds) before checking again
         print("Sleeping for 5 minutes...", flush=True)
         time.sleep(300)
+
+
 
 if __name__ == "__main__":
     main()
