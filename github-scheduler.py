@@ -266,6 +266,7 @@
 
 
 
+
 import json
 import time
 import subprocess
@@ -354,7 +355,7 @@ def monitor_workflow(run_id, workflow_file):
         # If it finished naturally before 5 hours, exit tracking loop
         if status == "completed":
             print(f"Workflow {workflow_file} finished naturally with conclusion: {conclusion}", flush=True)
-            break
+        
     except Exception as e:
         # Logs temporary network dropouts or API rate-limits without breaking the loop
         print(f"Temporary GitHub API status checking glitch: {e}. Retrying...", flush=True)
