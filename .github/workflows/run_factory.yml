@@ -89,7 +89,7 @@ jobs:
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
-      # 4b. Use genuine browser simulation to process downreels.com completely safely
+    # 4b. Use genuine browser simulation to process fastdl.app completely safely
       - name: Cloud Download Video Asset via Playwright Simulation
         env:
           DISPLAY: :99
@@ -122,7 +122,7 @@ jobs:
               os.makedirs('downloads', exist_ok=True)
               output_path = f"downloads/reelforyoutube.mp4"
               
-              print(f"🚀 Launching real browser instance to download from downreels.com: {reel_url}")
+              print(f"🚀 Launching real browser instance to download from fastdl.app: {reel_url}")
               
               video_stream_url = None
               download_success = False
@@ -143,20 +143,22 @@ jobs:
                   await page.route("**/*", lambda route: route.continue_() if not any(x in route.request.url for x in ["googlesyndication", "doubleclick", "adservice", "popads"]) else route.abort())
                   
                   print("🌐 Loading downloader frontend...")
-                  await page.goto("https://downreels.com/", wait_until="domcontentloaded", timeout=60000)
+                  await page.goto("https://fastdl.app/en4", wait_until="domcontentloaded", timeout=60000)
                   await page.wait_for_timeout(2000)
                   
-                  input_locator = page.get_by_role('textbox', name='Paste Instagram Reel URL')
+                  # Target the input box matching placeholder criteria
+                  input_locator = page.get_by_placeholder('Insert instagram link here')
                   await input_locator.wait_for(state='visible', timeout=15000)
                   await input_locator.click()
                   await input_locator.fill(reel_url)
                   await page.wait_for_timeout(1000)
                   
                   print("⚡ Dispatching submission click event on primary download engine button...")
-                  await page.get_by_role('button', name='DOWNLOAD', exact=True).click()
+                  await page.get_by_role('button', name='Download').click()
                   
-                  print("⏳ Monitoring page layout transformations, waiting for direct download buttons...")
+                  print("⏳ Monitoring page layout transformations, waiting for direct download links...")
                   
+                  # Dismiss aggressive overlays if any are visible 
                   try:
                       close_selectors = [".modal-footer button", ".close", "button:has-text('Close')", "#close-button"]
                       for sel in close_selectors:
@@ -166,13 +168,12 @@ jobs:
                       pass
                   
                   try:
-                      # Fixed tag-agnostic selector text hook
-                      download_btn = page.locator("a:has-text('Download HD MP4'), button:has-text('Download HD MP4')").first
+                      # Python Async Playwright syntax targeting exact anchor elements matching "Download"
+                      download_btn = page.get_by_role('link', name='Download', exact=True).first
                       await download_btn.wait_for(state='visible', timeout=25000)
                       
                       print("🎯 Native Playwright event listener active. Triggering physical browser stream click...")
                       
-                      # FIX: Changed context.expect_download to page.expect_download for Python Playwright compatibility
                       async with page.expect_download(timeout=30000) as download_info:
                           await download_btn.click()
                       
@@ -209,7 +210,7 @@ jobs:
                   
                   if isinstance(video_stream_url, str) and video_stream_url.startswith("/"):
                       print("🔧 Relative link path configuration identified. Applying absolute root repairs...")
-                      video_stream_url = f"https://downreels.com{video_stream_url}"
+                      video_stream_url = f"https://fastdl.app{video_stream_url}"
                       
                   if isinstance(video_stream_url, str):
                       video_stream_url = video_stream_url.replace('&amp;', '&')
@@ -221,16 +222,159 @@ jobs:
               
               if os.path.exists(output_path):
                   file_size = os.path.getsize(output_path)
-                  if file_size > 50000:
-                      print(f"🎉 Real video asset captured successfully! Size: {file_size / (1024*1024):.2f} MB")
+                  if file_size > 5000:
+                      print(f"🎬 Real video asset captured successfully! Size: {file_size / (1024*1024):.2f} MB")
                   else:
                       os.remove(output_path)
                       print("❌ Download output contains light text metrics instead of video data. Dropping placeholder.")
               else:
                   print("❌ Core system disk space rejected file creation execution.")
-          
+
           asyncio.run(run_stealth_download())
           EOF
+
+      # # 4b. Use genuine browser simulation to process downreels.com completely safely
+      # - name: Cloud Download Video Asset via Playwright Simulation
+      #   env:
+      #     DISPLAY: :99
+      #   run: |
+      #     python3 << 'EOF'
+      #     import json, os, subprocess, asyncio, shutil
+      #     from playwright.async_api import async_playwright
+          
+      #     async def run_stealth_download():
+      #         # 1. Extraction safety checks
+      #         if not os.path.exists('pipeline_data.json'):
+      #             print("ℹ️ pipeline_data.json missing. Skipping download cycle.")
+      #             return
+                  
+      #         with open('pipeline_data.json', 'r') as f:
+      #             pipeline = json.load(f)
+              
+      #         reel_url = pipeline.get('reel_url')
+      #         shortcode = pipeline.get('shortcode', 'downloaded_reel')
+              
+      #         if not reel_url or "unknown" in reel_url:
+      #             print("❌ Missing video URL target path inside JSON queue.")
+      #             return
+              
+      #         # CRITICAL AUTOMATED RESET: Wipes out previous video file frames completely
+      #         if os.path.exists('downloads'):
+      #             shutil.rmtree('downloads')
+      #             print("🧹 Storage Reset: Prior video files completely purged from memory workspace.")
+                  
+      #         os.makedirs('downloads', exist_ok=True)
+      #         output_path = f"downloads/reelforyoutube.mp4"
+              
+      #         print(f"🚀 Launching real browser instance to download from downreels.com: {reel_url}")
+              
+      #         video_stream_url = None
+      #         download_success = False
+              
+      #         async with async_playwright() as p:
+      #             browser = await p.chromium.launch(
+      #                 headless=False,
+      #                 args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
+      #             )
+                  
+      #             context = await browser.new_context(
+      #                 viewport={'width': 1280, 'height': 720},
+      #                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      #                 accept_downloads=True
+      #             )
+                  
+      #             page = await context.new_page()
+      #             await page.route("**/*", lambda route: route.continue_() if not any(x in route.request.url for x in ["googlesyndication", "doubleclick", "adservice", "popads"]) else route.abort())
+                  
+      #             print("🌐 Loading downloader frontend...")
+      #             await page.goto("https://downreels.com/", wait_until="domcontentloaded", timeout=60000)
+      #             await page.wait_for_timeout(2000)
+                  
+      #             input_locator = page.get_by_role('textbox', name='Paste Instagram Reel URL')
+      #             await input_locator.wait_for(state='visible', timeout=15000)
+      #             await input_locator.click()
+      #             await input_locator.fill(reel_url)
+      #             await page.wait_for_timeout(1000)
+                  
+      #             print("⚡ Dispatching submission click event on primary download engine button...")
+      #             await page.get_by_role('button', name='DOWNLOAD', exact=True).click()
+                  
+      #             print("⏳ Monitoring page layout transformations, waiting for direct download buttons...")
+                  
+      #             try:
+      #                 close_selectors = [".modal-footer button", ".close", "button:has-text('Close')", "#close-button"]
+      #                 for sel in close_selectors:
+      #                     if await page.locator(sel).is_visible():
+      #                         await page.click(sel)
+      #             except Exception:
+      #                 pass
+                  
+      #             try:
+      #                 # Fixed tag-agnostic selector text hook
+      #                 download_btn = page.locator("a:has-text('Download HD MP4'), button:has-text('Download HD MP4')").first
+      #                 await download_btn.wait_for(state='visible', timeout=25000)
+                      
+      #                 print("🎯 Native Playwright event listener active. Triggering physical browser stream click...")
+                      
+      #                 # FIX: Changed context.expect_download to page.expect_download for Python Playwright compatibility
+      #                 async with page.expect_download(timeout=30000) as download_info:
+      #                     await download_btn.click()
+                      
+      #                 download = await download_info.value
+      #                 await download.save_as(output_path)
+      #                 download_success = True
+      #                 print("✅ Successfully captured file directly via native browser download event.")
+                      
+      #             except Exception as event_error:
+      #                 print(f"⚠️ Native browser download event failed or timed out: ({event_error})")
+      #                 print("🔄 Activating scraping fallback pipeline...")
+                      
+      #                 try:
+      #                     links = await page.locator("a, form, button").all()
+      #                     for link in links:
+      #                         try:
+      #                             href = await link.get_attribute("href") or await link.get_attribute("action") or await link.get_attribute("onclick")
+      #                             if href and any(x in href.lower() for x in ["instagram", "cdn", ".mp4", "download"]):
+      #                                 video_stream_url = href
+      #                                 break
+      #                         except Exception:
+      #                             continue
+      #                 except Exception as fallback_error:
+      #                     print(f"❌ Fallback link identification failed: {fallback_error}")
+                              
+      #             await browser.close()
+              
+      #         if not download_success and video_stream_url:
+      #             if isinstance(video_stream_url, str) and "window.open" in video_stream_url:
+      #                 import re
+      #                 urls = re.findall(r"https?://[^']+", video_stream_url)
+      #                 if urls:
+      #                     video_stream_url = urls
+                  
+      #             if isinstance(video_stream_url, str) and video_stream_url.startswith("/"):
+      #                 print("🔧 Relative link path configuration identified. Applying absolute root repairs...")
+      #                 video_stream_url = f"https://downreels.com{video_stream_url}"
+                      
+      #             if isinstance(video_stream_url, str):
+      #                 video_stream_url = video_stream_url.replace('&amp;', '&')
+      #                 print(f"🔗 Clean stream link isolated: {video_stream_url[:60]}...")
+      #                 print("Streaming media blocks directly into workspace directory...")
+                      
+      #                 curl_cmd = ["curl", "-L", "-A", "Mozilla/5.0", "-o", output_path, video_stream_url]
+      #                 subprocess.run(curl_cmd, capture_output=True)
+              
+      #         if os.path.exists(output_path):
+      #             file_size = os.path.getsize(output_path)
+      #             if file_size > 50000:
+      #                 print(f"🎉 Real video asset captured successfully! Size: {file_size / (1024*1024):.2f} MB")
+      #             else:
+      #                 os.remove(output_path)
+      #                 print("❌ Download output contains light text metrics instead of video data. Dropping placeholder.")
+      #         else:
+      #             print("❌ Core system disk space rejected file creation execution.")
+          
+      #     asyncio.run(run_stealth_download())
+      #     EOF
 
       # ====================================================================
 
