@@ -298,42 +298,35 @@ def trigger_workflow(workflow_file):
     
     # Wait for GitHub to register the run, then fetch the Run ID
     time.sleep(15)
-    id_cmd = f"gh run list --workflow={workflow_file} --limit=1 --json databaseId --jq '..databaseId'"
+    # Change this line inside trigger_workflow():
+    id_cmd = f"gh run list --workflow={workflow_file} --limit=1 --json databaseId --jq '.[0].databaseId'"
+
     run_id, _ = run_command(id_cmd)
     return run_id
 
 
 
 
-
 def monitor_workflow(run_id, workflow_file, job_start_time):
-    """Monitors a workflow run. Triggers scheduler-controller.yml, cancels the run if it exceeds 5 hours, and stops."""
+    """Monitors a workflow run. Triggers scheduler-controller.yml, cancels the run if it exceeds 5 hours."""
     
     five_hours_in_seconds = 5 * 60 * 60
-
     print(f"Monitoring Workflow Run ID: {run_id} for {workflow_file}", flush=True)
     
     while True:
-        # FIX: Track time relative to when THIS specific job actually started, not global master start time
         elapsed_time = time.time() - job_start_time
         print(f"Checking status... Elapsed time for this job: {elapsed_time / 3600:.2f} hours", flush=True)
             
-        # Check if the workflow has hit or crossed the 5-hour mark
         if elapsed_time >= five_hours_in_seconds:
             print(f"⚠️ Alert: Workflow {workflow_file} (Run ID: {run_id}) has reached the 5-hour limit!", flush=True)
                 
-            # 1. Trigger the scheduler-controller.yml workflow via GitHub CLI
             controller_wf = "scheduler-controller.yml"
             print(f"Triggering controller workflow: {controller_wf}...", flush=True)
             trigger_cmd = f"gh workflow run {controller_wf} --ref main"
             t_out, t_err = run_command(trigger_cmd)
                 
-            # 2. Check if the controller workflow was triggered successfully
             if not t_err:
-                print(f"✅ {controller_wf} triggered successfully. Proceeding to eliminate the target workflow...", flush=True)
-                    
-                # 3. Eliminate/Cancel the running target workflow
-                print(f"Eliminating workflow run {run_id}...", flush=True)
+                print(f"✅ {controller_wf} triggered successfully. Cancelling target workflow...", flush=True)
                 cancel_cmd = f"gh run cancel {run_id}"
                 c_out, c_err = run_command(cancel_cmd)
                 if c_err:
@@ -341,32 +334,33 @@ def monitor_workflow(run_id, workflow_file, job_start_time):
                 else:
                     print(f"Successfully eliminated target workflow {workflow_file}.", flush=True)
                     
-                # 4. Gracefully terminate this engine script with a success exit status code
                 print("🏁 Script logic complete. Terminating scheduler process successfully.", flush=True)
                 sys.exit(0)
             else:
-                print(f"❌ Failed to trigger {controller_wf}. Error: {t_err}. Aborting termination loop.", flush=True)
-                sys.exit(1) # Terminates with failure code if workflow trigger fails
+                print(f"❌ Failed to trigger {controller_wf}. Error: {t_err}. Aborting.", flush=True)
+                sys.exit(1)
 
-        # Check GitHub status of the workflow
+        # Updated safe status check format
         status_cmd = f"gh run view {run_id} --json status,conclusion"
-        status_json, _ = run_command(status_cmd)
-            
-        try:
-            status_data = json.loads(status_json)
-            status = status_data.get("status")
-            conclusion = status_data.get("conclusion")
+        status_json, status_err = run_command(status_cmd)
+        
+        if status_err or not status_json:
+            print(f"CLI Error or empty response. Details: {status_err}", flush=True)
+        else:
+            try:
+                status_data = json.loads(status_json)
+                status = status_data.get("status")
+                conclusion = status_data.get("conclusion")
+                    
+                if status == "completed":
+                    print(f"Workflow {workflow_file} finished naturally with conclusion: {conclusion}", flush=True)
+                    break 
                 
-            # If it finished naturally before 5 hours, exit tracking loop
-            if status == "completed":
-                print(f"Workflow {workflow_file} finished naturally with conclusion: {conclusion}", flush=True)
-                break # Return to main schedule checking loop
-            
-        except Exception as e:
-            # Logs temporary network dropouts or API rate-limits without breaking the loop
-            print(f"Temporary GitHub API status checking glitch: {e}. Retrying...", flush=True)
+            except Exception as e:
+                print(f"Parsing error: {e}. Raw payload received: {status_json}", flush=True)
 
-        time.sleep(60) # Check status every 1 minute
+        time.sleep(60)
+
 
 def check_and_execute_jobs():
     """Reads config.json and runs any workflow matching the 5-minute window."""
@@ -401,8 +395,6 @@ def check_and_execute_jobs():
             break 
             
 
-
- 
 
 def main():
     print("🚀 Long-running master scheduler started via Python loop engine...", flush=True)
