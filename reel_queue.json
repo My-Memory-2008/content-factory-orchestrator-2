@@ -1,10 +1,10 @@
 {
   "queue": [
     {
-      "url": "https://www.instagram.com/marvelworld.in/reel/DXlSAy-k_ky/",
-      "username": "marvelworld.in",
+      "url": "https://www.instagram.com/marvelinfinity.in/reel/CrEBlTrPXH_/",
+      "username": "marvelinfinity.in",
       "notes": "Auto-added from reels_source.txt",
-      "added_at": "2026-07-20T10:15:48.229350+00:00"
+      "added_at": "2026-07-21T10:17:15.973429+00:00"
     }
   ],
   "processed": [
@@ -192,7 +192,7 @@
   "metadata": {
     "total_queued": 1,
     "total_processed": 0,
-    "last_run": "2026-07-20T10:15:48.229460+00:00",
+    "last_run": "2026-07-21T10:17:15.973550+00:00",
     "next_scheduled": null
   }
 }
